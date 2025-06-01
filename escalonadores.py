@@ -1,36 +1,41 @@
-from multiprocessing import Process, Event, current_process
+from multiprocessing import Process, Event, Value, current_process
 import time
 import random
 import time
-from typing import List
+from typing import Any, List
 import readProcesses
 
 class EventProcess:
     def __init__(self, runEvent, dataRow):
         self.runEvent = runEvent
         self.dataRow = dataRow
+        self.segundosTotaisAteFinalizacao = Value('d', 0.0)
 
     runEvent : Event # type: ignore
     process : Process
     dataRow : readProcesses.DataRow
+    trocasContextoTotais = 0
 
 
 def process(process : EventProcess, stopEvent : Event): # type: ignore
+    tempoInicio = 0.0
     if not stopEvent.is_set():
+        tempoInicio = time.time()
         print("Iniciando processo: " + current_process().name)
 
     i = 0
     while not stopEvent.is_set():
         while process.runEvent.is_set():
             # Bloqueio I/O
-            if i > 5 and process.dataRow.hasBloqueio:
+            if i >= process.dataRow.execucao and process.dataRow.hasBloqueio:
                 process.dataRow.hasBloqueio = False
                 process.runEvent.clear()
                 time.sleep(process.dataRow.espera)
                 break
 
-            if i > 20:
+            if i >= process.dataRow.execucao + process.dataRow.execucao2:
                 print("Processo: " + current_process().name + " completo.")
+                process.segundosTotaisAteFinalizacao.value = time.time() - tempoInicio
                 return
             i += 1
             time.sleep(1)
@@ -39,6 +44,21 @@ def process(process : EventProcess, stopEvent : Event): # type: ignore
 def finish():
     threadStopEvent.set()
     stopEvent.set()
+
+    completeProcesses.sort(key=lambda eventprocess: eventprocess.dataRow.id)
+    data : List[List[Any]] = [["id", "segundos totais", "tempo executando", "tempo de espera", "trocas de contexto"]]
+    for process in completeProcesses:
+        tempoExecutando = process.dataRow.execucao + process.dataRow.execucao2
+        data.append([
+            process.dataRow.id,
+            process.segundosTotaisAteFinalizacao.value,
+            tempoExecutando,
+            process.segundosTotaisAteFinalizacao.value - tempoExecutando,
+            process.trocasContextoTotais
+        ])
+    
+    for row in data:
+        print("{:<5} {:<20} {:<20} {:<20}".format(*row))
 
     def endProcess(eventProcess):
         if not eventProcess.process.is_alive() and eventProcess.process.exitcode is None:
@@ -66,6 +86,8 @@ if __name__ == '__main__':
     set_start_method('spawn')
 
     stopEvent = Event()
+
+    completeProcesses : List[EventProcess] = []
 
     cpuCore1Process : List[EventProcess] = []
     cpuCore2Process : List[EventProcess] = []
@@ -106,14 +128,16 @@ if __name__ == '__main__':
     def processRunn(threadStopEvent : threading.Event, quantumOpcoes : str):
         def runCicle(processes : list[EventProcess]):
             if len(processes) != 0:
-                if not processes[0].process.is_alive():
-                    processes.remove(processes[0])
+                if not processes[0].process.is_alive() and not (processes[0].process.exitcode is None):
+                    completeProcesses.append(processes[0])
+                    processes.pop(0)
                     runCicle(processes)
                 else:
                     if processes[0].runEvent.is_set():
+                        processes[0].trocasContextoTotais += 1
                         processes[0].runEvent.clear()
                         process = processes[0]
-                        processes.remove(processes[0])
+                        processes.pop(0)
                         processes.append(process)
                     processes[0].runEvent.set()
 
@@ -138,8 +162,6 @@ if __name__ == '__main__':
             break
         else:
             print("Opção inválida!")
-
-    print("Pressione enter no terminal para finalizar o programa.\n")
 
     processBuilder = threading.Thread(target=processBuild, args=(threadStopEvent, processes))
     processBuilder.start()

@@ -17,10 +17,10 @@ def read_file_to_objects(filename):
         parts = [part.strip() for part in line.split('|')]
         col1 = int(parts[0])
         col2 = int(parts[1])
-        col3 = parts[2].strip('"')
+        col3 = int(parts[2])
         col4 = parts[3].lower() == 'true'
         col5 = int(parts[4])
-        col6 = parts[5].strip('"')
+        col6 = int(parts[5])
         return DataRow(col1, col2, col3, col4, col5, col6)
     
     processes = []
