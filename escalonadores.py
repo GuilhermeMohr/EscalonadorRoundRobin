@@ -141,12 +141,12 @@ if __name__ == '__main__':
                     leastTime = process.dataRow.tempoChegada - nowTime
 
             processes[:] = [process for process in processes if process.dataRow.tempoChegada >= nowTime]
-            time.sleep(min(leastTime, 1))
+            time.sleep(leastTime)
 
     def processRunn(cpuProcesses : List[EventProcess], threadStopEvent : threading.Event, quantumOpcoes : str):
         def runCicle(processes : list[EventProcess]):
             if len(processes) != 0:
-                if not processes[0].process.is_alive():
+                if not processes[0].process.is_alive() and not (processes[0].process.exitcode is None):
                     completeProcesses.append(processes[0])
                     processes.pop(0)
                     return runCicle(processes)
