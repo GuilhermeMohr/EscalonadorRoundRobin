@@ -128,9 +128,9 @@ if __name__ == '__main__':
             nowTime = time.time() - beginTime
             for process in processes:
                 if process.dataRow.tempoChegada < nowTime:
-                    if len(cpuCore1Process) == len(cpuCore2Process):
+                    if len(cpuCore1Process) == len(cpuCore4Process):
                         cpuCore1Process.append(process)
-                    elif len(cpuCore2Process) == len(cpuCore3Process):
+                    elif len(cpuCore2Process) == len(cpuCore4Process):
                         cpuCore2Process.append(process)
                     elif len(cpuCore3Process) == len(cpuCore4Process):
                         cpuCore3Process.append(process)
